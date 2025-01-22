@@ -104,7 +104,8 @@ async def connect(
             detail="Missing conversation_id in params",
         )
 
-    logger.debug(f"Starting voice bot for conversation {params.conversation_id}")
+    logger.debug(f"Starting voice bot for conversation {
+                 params.conversation_id}")
 
     # Check that the conversation exists before proceeding
     conversation = await Conversation.get_conversation_by_id(params.conversation_id, db)
@@ -135,3 +136,48 @@ async def connect(
             "token": user_token,
         }
     )
+
+
+@router.post("/teacher-connect", response_class=JSONResponse)
+async def connect_teacher(
+    params: BotParams,
+    db: AsyncSession = Depends(get_db),
+):
+    """Start a teaching session with Pipecat Flows."""
+    if not all([params.subject, params.chapter, params.topic]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required teacher parameters (subject, chapter, topic)"
+        )
+
+    if not params.conversation_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing conversation_id",
+        )
+
+    # Set teacher mode
+    params.mode = "teacher"
+    params.bot_profile = "text-voice"  # Ensure we're using text-voice mode
+
+    # Check that we have a valid daily API key
+    transport_api_key = SERVICE_API_KEYS["daily"]
+    if not transport_api_key:
+        logger.error("Missing API key for transport service")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Missing API key for transport service",
+        )
+
+    # Create Daily room and tokens
+    room, user_token, bot_token = await bot_create(transport_api_key)
+
+    # Launch the bot process
+    bot_launch(params, DEFAULT_BOT_CONFIG, room.url, bot_token)
+
+    # Return connection details
+    return JSONResponse({
+        "room_name": room.name,
+        "room_url": room.url,
+        "token": user_token,
+    })

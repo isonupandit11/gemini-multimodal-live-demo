@@ -32,6 +32,10 @@ export const AppStateProvider: React.FC<React.PropsWithChildren<Props>> = ({
     cid ? "text-voice" : null,
   );
 
+  const [teacherSubject, setTeacherSubject] = useState("");
+  const [teacherChapter, setTeacherChapter] = useState("");
+  const [teacherTopic, setTeacherTopic] = useState("");
+
   useEffect(() => {
     setConversationType(conversationId ? "text-voice" : null);
   }, [conversationId]);
@@ -68,6 +72,12 @@ export const AppStateProvider: React.FC<React.PropsWithChildren<Props>> = ({
         geminiApiKey,
         webrtcEnabled,
         websocketEnabled,
+        teacherSubject,
+        setTeacherSubject,
+        teacherChapter,
+        setTeacherChapter,
+        teacherTopic,
+        setTeacherTopic,
       }}
     >
       {children}

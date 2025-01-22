@@ -25,6 +25,9 @@ from pipecat.services.gemini_multimodal_live.gemini import (
     GeminiMultimodalLiveLLMService,
 )
 from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat_flows import FlowManager
+
+from app.flows.teacher_flow import create_teacher_flow_config
 
 
 async def bot_pipeline(
@@ -59,14 +62,27 @@ async def bot_pipeline(
     # RTVI
     #
 
-    llm_rt = GeminiMultimodalLiveLLMService(
-        api_key=str(SERVICE_API_KEYS["gemini"]),
-        voice_id="Aoede",  # Puck, Charon, Kore, Fenrir, Aoede
-        # system_instruction="Talk like a pirate."
-        transcribe_user_audio=True,
-        transcribe_model_audio=True,
-        inference_on_context_initialization=False,
-    )
+    # Initialize LLM service based on mode
+    if params.mode == "teacher":
+        system_instruction = f"""You are an expert instructor teaching about {params.subject},
+        specifically {params.chapter} - {params.topic}. Use a clear, structured teaching style."""
+        llm_rt = GeminiMultimodalLiveLLMService(
+            api_key=str(SERVICE_API_KEYS["gemini"]),
+            voice_id="Aoede",
+            system_instruction=system_instruction,
+            transcribe_user_audio=True,
+            transcribe_model_audio=True,
+            inference_on_context_initialization=False,
+        )
+    else:
+        # Existing default LLM setup
+        llm_rt = GeminiMultimodalLiveLLMService(
+            api_key=str(SERVICE_API_KEYS["gemini"]),
+            voice_id="Aoede",
+            transcribe_user_audio=True,
+            transcribe_model_audio=True,
+            inference_on_context_initialization=False,
+        )
 
     tools = NOT_GIVEN  # todo: implement tools in and set here
     context_rt = OpenAILLMContext(messages, tools)
@@ -107,6 +123,21 @@ async def bot_pipeline(
         assistant_aggregator,
         storage.create_processor(exit_on_endframe=True),
     ]
+
+    # Setup flow manager for teacher mode
+    if params.mode == "teacher":
+        flow_manager = FlowManager(
+            task=storage.create_processor(exit_on_endframe=True),
+            llm=llm_rt,
+            context_aggregator=context_aggregator_rt,
+            tts=transport.output(),
+            flow_config=create_teacher_flow_config(
+                params.subject,
+                params.chapter,
+                params.topic
+            )
+        )
+        processors.append(flow_manager)
 
     pipeline = Pipeline(processors)
 

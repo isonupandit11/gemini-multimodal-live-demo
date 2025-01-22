@@ -14,6 +14,10 @@ class BotParams(BaseModel):
     actions: List[RTVIMessage] = []
     bot_profile: Optional[str] = None
     attachments: List[str] = []
+    mode: Optional[str] = "default"
+    subject: Optional[str] = None 
+    chapter: Optional[str] = None
+    topic: Optional[str] = None
 
 
 class BotCallbacks(BaseModel):
